@@ -33,15 +33,21 @@ type TcpTransportOpts struct {
 type TcpTransport struct {
 	TcpTransportOpts
 	listner net.Listener
-
-	mu    sync.RWMutex
-	peers map[net.Addr]Peer
+	rpcch   chan RPC
+	mu      sync.RWMutex
+	peers   map[net.Addr]Peer
 }
 
 func NewTCPTransport(opts TcpTransportOpts) *TcpTransport {
 	return &TcpTransport{
 		TcpTransportOpts: opts,
+		rpcch:            make(chan RPC),
 	}
+}
+
+// Consume implements the transport interface, which will return read only channel.
+func (t *TcpTransport) Consume() <-chan RPC {
+	return t.rpcch
 }
 
 func (t *TcpTransport) ListenAndAccept() error {
@@ -54,8 +60,6 @@ func (t *TcpTransport) ListenAndAccept() error {
 	go t.startAcceptLoop()
 	return nil
 }
-
-type Temp struct{}
 
 func (t *TcpTransport) startAcceptLoop() {
 	for {
@@ -70,15 +74,19 @@ func (t *TcpTransport) startAcceptLoop() {
 func (t *TcpTransport) handleConn(con net.Conn) {
 	peer := NewTCPPeer(con, true)
 
-	if err := t.handshakeFunc(con); err != nil {
-
+	if err := t.HandShakeFunc(peer); err != nil {
+		con.Close()
+		fmt.Printf("TCP handshake error %s\n", err)
+		return
 	}
-	msg := &Temp{}
+	rpc := &RPC{}
 	for {
-		if err := t.decoder.Decode(con, msg); err != nil {
-			fmt.Printf("TCP error: %s\n", err)
+		if err := t.Decoder.Decode(con, rpc); err != nil {
+			fmt.Printf("TCP error: %s\n", rpc)
 			continue
 		}
+
+		fmt.Printf("message: %+v\n", rpc)
 	}
 
 }

@@ -1,6 +1,6 @@
 build:
 	go build -o build/fs
 run: build
-	./bin/fs
+	./build/fs
 test:
 	go test ./... -v
