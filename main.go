@@ -17,18 +17,18 @@ func main() {
 		ListenAddr:    ":3000",
 		HandShakeFunc: p2p.NOPHandShakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
-		OnPeer:        OnPeer,
 	}
 	tr := p2p.NewTCPTransport(tcpOpts)
 
-	go func() {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("%+v\n", msg)
-		}
-	}()
+	fileServerOpts := FileServerOpts{
+		StorageRoot:       "3000_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         *tr,
+	}
 
-	if err := tr.ListenAndAccept(); err != nil {
+	s := NewFileServer(fileServerOpts)
+
+	if err := s.Start(); err != nil {
 		log.Fatal(err)
 	}
 
