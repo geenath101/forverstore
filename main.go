@@ -7,30 +7,42 @@ import (
 	"github.com/geenath101/forverstore/p2p"
 )
 
+func makeServer(listenAddr string, nodes ...string) *FileServer {
+
+	tcpOpts := p2p.TcpTransportOpts{
+		ListenAddr:    listenAddr,
+		HandShakeFunc: p2p.NOPHandShakeFunc,
+		Decoder:       p2p.DefaultDecoder{},
+		// TODO onPeer func
+	}
+
+	tcpTransport := p2p.NewTCPTransport(tcpOpts)
+
+	fileServerOpts := FileServerOpts{
+		StorageRoot:       listenAddr + "_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         *tcpTransport,
+		BootstrapNodes:    []string{":4000"},
+	}
+
+	return NewFileServer(fileServerOpts)
+
+}
+
 func OnPeer(p2p.Peer) error {
 	fmt.Printf("doing some logic with the peer outside of TCPTransport")
 	return nil
 }
 
 func main() {
-	tcpOpts := p2p.TcpTransportOpts{
-		ListenAddr:    ":3000",
-		HandShakeFunc: p2p.NOPHandShakeFunc,
-		Decoder:       p2p.DefaultDecoder{},
-	}
-	tr := p2p.NewTCPTransport(tcpOpts)
 
-	fileServerOpts := FileServerOpts{
-		StorageRoot:       "3000_network",
-		PathTransformFunc: CASPathTransformFunc,
-		Transport:         *tr,
-	}
+	s1 := makeServer(":3000", "")
+	s2 := makeServer(":4000", ":3000")
 
-	s := NewFileServer(fileServerOpts)
+	go func() {
+		log.Fatal(s1.Start())
+	}()
 
-	if err := s.Start(); err != nil {
-		log.Fatal(err)
-	}
+	s2.Start()
 
-	select {}
 }
