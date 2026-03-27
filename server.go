@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -23,9 +26,8 @@ type FileServer struct {
 	peerLock sync.Mutex
 	peers    map[string]p2p.Peer
 
-	store          *Store
-	BootstrapNodes []string
-	quitch         chan struct{}
+	store  *Store
+	quitch chan struct{}
 }
 
 func NewFileServer(opts FileServerOpts) *FileServer {
@@ -45,6 +47,14 @@ func (s *FileServer) Stop() {
 	close(s.quitch)
 }
 
+func (s *FileServer) OnPeer(p p2p.Peer) error {
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
+	s.peers[p.RemoteAddr().String()] = p
+	log.Printf("connected with the remote %s", p.RemoteAddr())
+	return nil
+}
+
 func (s *FileServer) loop() {
 
 	defer func() {
@@ -55,8 +65,12 @@ func (s *FileServer) loop() {
 	for {
 		select {
 		case msg := <-s.Transport.Consume():
+			var p Payload
+			if err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&p); err != nil {
+				log.Fatal(err)
+			}
 			// do something here
-			fmt.Println(msg)
+			fmt.Printf("%+v\n", p)
 		case <-s.quitch:
 			return
 		}
@@ -88,4 +102,50 @@ func (s *FileServer) Start() error {
 	}
 	s.loop()
 	return nil
+}
+
+type Payload struct {
+	Key  string
+	Data []byte
+}
+
+// func (s *FileServer) broadCast(p Payload) error {
+// 	buf := new(bytes.Buffer)
+// 	for _, peer := range s.peers {
+// 		if err := gob.NewEncoder(buf).Encode(p); err != nil {
+// 			return err
+// 		}
+// 		peer.Send(buf.Bytes())
+// 	}
+// 	return nil
+// }
+
+// double check the implementation here
+func (s *FileServer) broadCast(p Payload) error {
+	peers := []io.Writer{}
+	for _, peer := range s.peers {
+		peers = append(peers, peer)
+	}
+	mw := io.MultiWriter(peers...)
+	return gob.NewEncoder(mw).Encode(p)
+}
+
+func (s *FileServer) StoreData(key string, r io.Reader) error {
+	// 1. store this file to the disk
+	// 2. broadcast this file to all the known peers in the network
+
+	buf := new(bytes.Buffer)
+	tee := io.TeeReader(r, buf)
+
+	if err := s.store.Write(key, tee); err != nil {
+		return err
+	}
+	p := &Payload{
+		Key:  key,
+		Data: buf.Bytes(),
+	}
+
+	fmt.Println(buf.Bytes())
+
+	return s.broadCast(p)
 }
