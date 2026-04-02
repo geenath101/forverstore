@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 )
 
 // TCP Perr represents the remote node over established connection
@@ -16,12 +17,15 @@ type TCPPeer struct {
 	//if dial and retrieve a conn => outbound=true
 	//if accept and retieve a conn => outbound = false
 	outbound bool
+
+	Wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
+		Wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -61,13 +65,13 @@ func (t *TcpTransport) Close() error {
 
 // Close implements the peer interface
 func (p *TCPPeer) Close() error {
-	return p.conn.Close()
+	return p.Conn.Close()
 }
 
 // RemoteAddr implements the peer interface and will return the remote
 // address of its undelying connection of the peer.
 func (p *TCPPeer) RemoteAddr() net.Addr {
-	return p.conn.RemoteAddr()
+	return p.Conn.RemoteAddr()
 }
 
 func (t *TcpTransport) Dial(addr string) error {
@@ -139,13 +143,17 @@ func (t *TcpTransport) handleConn(con net.Conn, isOutBound bool) {
 			continue
 		}
 		//fmt.Printf("message: %+v\n", rpc)
-		rpc.From = con.RemoteAddr()
+		rpc.From = con.RemoteAddr().String()
+		peer.Wg.Add(1)
+		fmt.Println("waiting till stream is done")
 		t.rpcch <- rpc
+		peer.Wg.Wait()
+		fmt.Println("stream done,countinueing normal read loop")
 	}
 
 }
 
 func (p *TCPPeer) Send(b []byte) error {
-	_, err := p.conn.Write(b)
+	_, err := p.Conn.Write(b)
 	return err
 }
