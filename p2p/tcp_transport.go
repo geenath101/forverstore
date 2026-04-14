@@ -49,7 +49,7 @@ type TcpTransport struct {
 func NewTCPTransport(opts TcpTransportOpts) *TcpTransport {
 	return &TcpTransport{
 		TcpTransportOpts: opts,
-		rpcch:            make(chan RPC),
+		rpcch:            make(chan RPC, 1024),
 	}
 }
 
@@ -144,11 +144,15 @@ func (t *TcpTransport) handleConn(con net.Conn, isOutBound bool) {
 		}
 		//fmt.Printf("message: %+v\n", rpc)
 		rpc.From = con.RemoteAddr().String()
-		peer.Wg.Add(1)
-		fmt.Println("waiting till stream is done")
+
+		if rpc.Stream {
+			peer.Wg.Add(1)
+			fmt.Printf("[%s] incoming stream, waiting ", con.RemoteAddr())
+			peer.Wg.Wait()
+			fmt.Printf("[%s] stream closed,resuming the read loop", con.RemoteAddr())
+			continue
+		}
 		t.rpcch <- rpc
-		peer.Wg.Wait()
-		fmt.Println("stream done,countinueing normal read loop")
 	}
 
 }

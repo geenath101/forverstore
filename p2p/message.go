@@ -8,4 +8,8 @@ type RPC struct {
 	//From    net.Addr
 	From    string
 	Payload []byte
+	Stream  bool
 }
+
+const IncomingMessage = 0x1
+const IncomingStream = 0x2

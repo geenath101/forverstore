@@ -46,13 +46,32 @@ func main() {
 		log.Fatal(s1.Start())
 	}()
 
-	time.Sleep(1 * time.Second)
-	log.Print("Starting server s2")
-	log.Fatal(s2.Start())
+	time.Sleep(2 * time.Second)
 
-	time.Sleep(1 * time.Second)
+	go func() {
+		log.Print("Starting server s2")
+		log.Fatal(s2.Start())
+	}()
 
-	data := bytes.NewReader([]byte("my big data file"))
-	s2.StoreData("privatedata", data)
+	time.Sleep(2 * time.Second)
+	//data := bytes.NewReader([]byte("my big data file"))
+	//s2.Store("privatedata", data)
 
+	for i := 0; i < 10; i++ {
+		data := bytes.NewReader([]byte("my big data file here!"))
+		s2.Store("myprivatedata", data)
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	// r, err := s2.Get("privatedata")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// b, err := ioutil.ReadAll(r)
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(string(b))
 }
