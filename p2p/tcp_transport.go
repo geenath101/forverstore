@@ -87,11 +87,14 @@ func (t *TcpTransport) Dial(addr string) error {
 
 func (t *TcpTransport) ListenAndAccept() error {
 	var err error
+
+	// firt trying to connect to a given address , first step of the connection
 	t.listner, err = net.Listen("tcp", t.ListenAddr)
 	if err != nil {
 		return err
 	}
 
+	// if can be listen , try to listen on this address, in a seperate loop
 	go t.startAcceptLoop()
 
 	log.Printf("TCP transport listening on port :%s\n", t.ListenAddr)
@@ -121,7 +124,7 @@ func (t *TcpTransport) handleConn(con net.Conn, isOutBound bool) {
 		con.Close()
 	}()
 
-	peer := NewTCPPeer(con, true)
+	peer := NewTCPPeer(con, isOutBound)
 
 	if err := t.HandShakeFunc(peer); err != nil {
 		//con.Close()

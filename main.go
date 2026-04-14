@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"time"
@@ -23,7 +22,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 		StorageRoot:       listenAddr + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         *tcpTransport,
-		BootstrapNodes:    []string{":4000"},
+		BootstrapNodes:    nodes,
 	}
 	s := NewFileServer(fileServerOpts)
 	tcpTransport.OnPeer = s.OnPeer
@@ -57,11 +56,11 @@ func main() {
 	//data := bytes.NewReader([]byte("my big data file"))
 	//s2.Store("privatedata", data)
 
-	for i := 0; i < 10; i++ {
-		data := bytes.NewReader([]byte("my big data file here!"))
-		s2.Store("myprivatedata", data)
-		time.Sleep(1 * time.Millisecond)
-	}
+	// for i := 0; i < 10; i++ {
+	// 	data := bytes.NewReader([]byte("my big data file here!"))
+	// 	s2.Store("myprivatedata", data)
+	// 	time.Sleep(1 * time.Millisecond)
+	// }
 
 	// r, err := s2.Get("privatedata")
 	// if err != nil {

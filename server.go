@@ -279,6 +279,7 @@ func (s *FileServer) bootstrapNetwork() error {
 			if err := s.Transport.Dial(addr); err != nil {
 				log.Println("dial error ", err)
 			}
+			fmt.Printf("connected to server at %v\n", addr)
 		}(addr)
 	}
 
@@ -289,6 +290,7 @@ func (s *FileServer) Start() error {
 	if err := s.Transport.ListenAndAccept(); err != nil {
 		return err
 	}
+	s.bootstrapNetwork()
 	s.loop()
 	return nil
 }
